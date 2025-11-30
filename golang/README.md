@@ -256,7 +256,97 @@ func main() {
 
 -----
 
-## 7\. Best Practices / Pro-Tips
+## 7\. File Paths & I/O (`pathlib` equivalent)
+
+**The Mental Shift:**
+
+  * **Python (`pathlib`):** You create a `Path` **Object**. You call methods on it (`p.joinpath()`, `p.name`).
+  * **Go (`path/filepath`):** You manipulate **Strings**. You pass strings into helper functions.
+
+**Crucial Warning:** Go has two packages: `path` and `path/filepath`.
+
+  * `path` = For URLs or virtual paths (always uses `/`).
+  * `path/filepath` = For OS file systems (handles `\` on Windows and `/` on Mac/Linux). **Always use this for files.**
+
+### Common Operations Cheat Sheet
+
+| Task | Python (`pathlib`) | Go (`path/filepath` + `os`) |
+| :--- | :--- | :--- |
+| **Import** | `from pathlib import Path` | `import "path/filepath"` <br> `import "os"` |
+| **Join Paths** | `p = Path("data") / "file.txt"` | `p := filepath.Join("data", "file.txt")` |
+| **Get Filename** | `p.name` | `filepath.Base(p)` |
+| **Get Directory** | `p.parent` | `filepath.Dir(p)` |
+| **Get Extension** | `p.suffix` | `filepath.Ext(p)` |
+| **Absolute Path** | `p.resolve()` | `abs, err := filepath.Abs(p)` |
+| **Read File** | `p.read_text()` | `data, err := os.ReadFile(p)` |
+| **Write File** | `p.write_text("content")` | `err := os.WriteFile(p, []byte("content"), 0644)` |
+
+### The "Check if Exists" Pattern
+
+This is the most jarring difference. Go does not have a simple `.exists()` boolean helper because checking existence is an OS system call that can fail (permissions, disk errors).
+
+**Python:**
+
+```python
+if Path("config.json").exists():
+    print("Found it")
+```
+
+**Go:**
+
+```go
+// We try to get stats on the file
+if _, err := os.Stat("config.json"); err == nil {
+    fmt.Println("Found it")
+} else if os.IsNotExist(err) {
+    fmt.Println("Does not exist")
+} else {
+    // Some other error (e.g., permission denied)
+    fmt.Println("Error checking file:", err)
+}
+```
+
+### Full Example: Scanning a Directory (Globbing)
+
+How to find all `.json` files in a folder.
+
+**Python:**
+
+```python
+for f in Path("./data").glob("*.json"):
+    print(f.name)
+```
+
+**Go:**
+
+```go
+package main
+
+import (
+	"fmt"
+	"path/filepath"
+)
+
+func main() {
+    // Glob returns a slice of strings (paths) matches
+    // pattern: "./data/*.json"
+    matches, err := filepath.Glob(filepath.Join("data", "*.json"))
+    
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+
+    for _, match := range matches {
+        fmt.Println("Found:", match)
+        fmt.Println("Just name:", filepath.Base(match))
+    }
+}
+```
+
+----------
+
+## 8\. Best Practices / Pro-Tips
 
 1.  **Format on Save:** Ensure your editor runs `go fmt` (or `gopls`) on save. Go code has one standard style.
 2.  **Linting:** Install `golangci-lint`. It is the definitive linter.
